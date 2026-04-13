@@ -1,0 +1,10 @@
+# Ignore compiled C files
+*.o
+*.out
+*.exe
+
+# Ignore the virtual disk file if it's auto-generated and large
+/Project/Project/disk/
+
+# (Optional) Ignore VS Code personal settings
+.vscode/

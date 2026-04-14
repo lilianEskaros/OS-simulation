@@ -61,3 +61,78 @@ void print_queue(Queue* q, const char* queue_name) {
     }
     printf("\n");
 }
+PCB* find_and_remove_best_hrrn(Queue* q) {
+    if (is_empty(q)) return NULL;
+
+    Node* curr = q->head;
+    Node* prev = NULL;
+    Node* best_node = q->head;
+    Node* best_prev = NULL;
+    double max_ratio = -1.0;
+
+    // Iterate through the linked list to find the highest ratio
+    while (curr != NULL) {
+        // HRRN Formula: (W + B) / B
+        double ratio = (double)(curr->process->waitingTime + curr->process->burstTime) / curr->process->burstTime;
+        
+        if (ratio > max_ratio) {
+            max_ratio = ratio;
+            best_node = curr;
+            best_prev = prev;
+        }
+        prev = curr;
+        curr = curr->next;
+    }
+
+    // Unlink the best_node from the list
+    if (best_prev == NULL) q->head = best_node->next;
+    else best_prev->next = best_node->next;
+
+    if (best_node == q->tail) q->tail = best_prev;
+
+    PCB* selected_pcb = best_node->process;
+    free(best_node);
+    q->size--;
+    
+    return selected_pcb;
+}
+
+void remove_from_queue(Queue** q_ptr, PCB* process_to_remove) {
+    // Since we are using Queue** (pointer to the pointer), 
+    // we dereference it once to get the actual Queue*
+    Queue* q = *q_ptr;
+
+    if (q == NULL || q->head == NULL || process_to_remove == NULL) {
+        return;
+    }
+
+    Node* curr = q->head;
+    Node* prev = NULL;
+
+    // 1. Find the node containing the process
+    while (curr != NULL && curr->process != process_to_remove) {
+        prev = curr;
+        curr = curr->next;
+    }
+
+    // 2. If the process wasn't found in this queue, just exit
+    if (curr == NULL) return;
+
+    // 3. Unlink the node (The "Bypass" logic)
+    if (prev == NULL) {
+        // The process was at the head
+        q->head = curr->next;
+    } else {
+        // The process was in the middle or at the tail
+        prev->next = curr->next;
+    }
+
+    // 4. Update the tail if we removed the last element
+    if (curr == q->tail) {
+        q->tail = prev;
+    }
+
+    // 5. Clean up memory and update size
+    free(curr);
+    q->size--;
+}

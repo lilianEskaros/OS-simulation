@@ -1,9 +1,18 @@
 #ifndef MUTEX_H
 #define MUTEX_H
 
-#include "os_core.h"
+#include "../include/os_core.h"
 
-void semWait(Mutex* m, PCB* process);   // [cite: 75]
-void semSignal(Mutex* m, PCB* process); // [cite: 77]
+// Resource name constants — must match exactly what program files use
+#define RESOURCE_USER_OUTPUT "userOutput"
+#define RESOURCE_USER_INPUT  "userInput"
+#define RESOURCE_FILE        "file"
+
+// Function declarations
+void initialize_mutexes();
+int sem_wait(Mutex* mutex, PCB* process);
+PCB* sem_signal(Mutex* mutex, int pid);
+Mutex* get_mutex(char* resourceName);
+void print_mutex_state(Mutex* mutex);
 
 #endif

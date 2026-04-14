@@ -1,6 +1,7 @@
 #include "../include/scheduler.h"
 #include "../include/queue.h"
 #include "../include/interpreter.h"
+#include "../include/os_core.h"
 
 
 PCB* curr_process = NULL;
@@ -16,12 +17,12 @@ void schedule_RR() {
         curr_process = dequeue(ready_queue);
         curr_process->state = RUNNING;
         time_slice_c = 0;
-        printf("Selected Process: P%d\n", curr_process->processID);
+        printf("Selected Process: P%d\n", curr_process->pid);
         print_queue(ready_queue, "Ready Queue");
     }
 
     // 2. Execute
-    execute_next_instruction(curr_process);
+    execute_instruction(curr_process);
     time_slice_c++;
 
     // 3. Preempt if: Time slice finished OR process finished/blocked
@@ -44,10 +45,10 @@ void schedule_HRRN() {
         curr_process = find_and_remove_best_hrrn(ready_queue);
         curr_process->state = RUNNING;
         
-        printf("Selected Process (HRRN): P%d\n", curr_process->processID); 
+        printf("Selected Process (HRRN): P%d\n", curr_process->pid); 
         print_queue(ready_queue, "Ready Queue"); 
     }
-    execute_next_instruction(curr_process);
+    execute_instruction(curr_process);
 
     // Only reset when finished or blocked because it's non-preemptive 
     if (curr_process->state == FINISHED || curr_process->state == BLOCKED) {
@@ -65,7 +66,7 @@ void schedule_MLFQ() {
                 curr_process->state = RUNNING;
                 time_slice_c = 0; // Reset counter for new slice
                 
-                printf("Selected P%d from Queue %d\n", curr_process->processID, i);
+                printf("Selected P%d from Queue %d\n", curr_process->pid, i);
                 break; 
             }
         }
@@ -73,7 +74,7 @@ void schedule_MLFQ() {
     }
 
     // 2. Execute 1 instruction
-    execute_next_instruction(curr_process);
+    execute_instruction(curr_process);
     time_slice_c++;
 
     // 3. Logic for Quantum and Demotion
@@ -90,7 +91,7 @@ void schedule_MLFQ() {
         // Demote if not already at the bottom (Queue 3)
         if (current_level < 3) {
             curr_process->priorityLevel++;
-            printf("Demoting P%d to Queue %d\n", curr_process->processID, curr_process->priorityLevel);
+            printf("Demoting P%d to Queue %d\n", curr_process->pid , curr_process->priorityLevel);
         }
         
         // Add to the back of the appropriate queue

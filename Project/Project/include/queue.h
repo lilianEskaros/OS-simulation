@@ -13,20 +13,6 @@ typedef enum {
     FINISHED
 } ProcessState;
 
-// Process Control Block (PCB) Structure 
-typedef struct {
-    int processID;          // ID assigned at creation [cite: 53]
-    ProcessState state;     // Current state of the process [cite: 54]
-    int programCounter;    // Location of the next instruction [cite: 55]
-    int memStart;          // Start of memory boundary [cite: 56]
-    int memEnd;            // End of memory boundary [cite: 56]
-    
-    // Additional fields for scheduling logic
-    int arrivalTime;       // Used for HRRN and arrival checks [cite: 101, 111]
-    int burstTime;         // Estimated total instructions (for HRRN) 
-    int waitingTime;       // Time spent in Ready Queue 
-    int priorityLevel;     // Used if implementing MLFQ [cite: 107]
-} PCB;
 
 // Node for the Linked List Queue
 typedef struct Node {

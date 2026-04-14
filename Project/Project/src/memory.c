@@ -2,11 +2,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include "../include/memory.h"
+#include "../include/os_core.h"
 
-MemoryWord memory[40]; 
+MemoryWord memory[MEMORY_SIZE]; 
 
 void initialize_memory() {
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < MEMORY_SIZE; i++) {
         strcpy(memory[i].name, "Empty");
         strcpy(memory[i].value, "Empty");
     }
@@ -19,7 +20,7 @@ bool allocate_memory(PCB* process, const char* filename) {
         return false;
     }
     int lines_of_codes = 0;
-    char buffer[100];
+    char buffer[MAX_VALUE_LENGTH]; //Line buffer assume that no single line in the program file is longer than 100 char
     while (fgets(buffer, sizeof(buffer), file) != NULL) {
         lines_of_codes++;
     }
@@ -28,7 +29,7 @@ bool allocate_memory(PCB* process, const char* filename) {
     printf("Process %d needs %d memory words.\n" , process->pid, total_words_needed);
     int start_index = -1;
     int consecutive_empty = 0;
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < MEMORY_SIZE; i++) {
         if (strcmp(memory[i].name , "Empty")== 0) {
             if (consecutive_empty == 0) {
                 start_index = i;
@@ -111,13 +112,13 @@ void swap_from_disk(PCB* process) {
         return;
 }
 int total_words_needed = 0;
-char buffer[100];
+char buffer[MAX_VALUE_LENGTH];
 while (fgets(buffer, sizeof(buffer), file) != NULL) {
     total_words_needed++;
 }
 int start_index = -1;
 int consecutive_empty = 0;
-for (int i = 0; i < 40; i++) {
+for (int i = 0; i < MEMORY_SIZE; i++) {
     if (strcmp(memory[i].name, "Empty") == 0) {
         if (consecutive_empty == 0) {
             start_index = i;
@@ -157,7 +158,7 @@ printf("Process %d swapped in from disk to memory slots %d to %d.\n", process->p
 
 void print_memory_state() {
     printf("\n--- current Memory State ---\n");
-    for(int i=0 ; i<40; i++) {
+    for(int i=0 ; i<MEMORY_SIZE; i++) {
         if(strcmp(memory[i].name, "Empty") != 0) {
             printf("Memory Slot %d: %s = %s\n", i, memory[i].name, memory[i].value);
         }

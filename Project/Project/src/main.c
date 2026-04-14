@@ -28,6 +28,8 @@ Queue* get_blocked_queue() {
 Queue** get_mlfq_queues() {
     return mlfq_queues; 
 }
+typedef enum { RR, HRRN, MLFQ } Policy;
+Policy current_policy = RR;
 
 int main() {
     // Initialization of memory
@@ -42,13 +44,11 @@ int main() {
         mlfq_queues[i] = createQueue();
     }
 
-
-
-
+    Policy current_policy = RR;
 
 
     // Initialize Mutexes [cite: 82]
-    strcpy(file_mutex.resource_name, "file");
+    strcpy(file_mutex.resource_name, "file");  //ME7TAGEEN NEZZABAT DOL WITH CONSTANTS
     strcpy(input_mutex.resource_name, "userInput");
     strcpy(output_mutex.resource_name, "userOutput");
     file_mutex.is_locked = input_mutex.is_locked = output_mutex.is_locked = false;
@@ -63,7 +63,29 @@ int main() {
         
         printf("\n--- Clock Cycle: %d ---\n", clock_cycle);
         print_memory_state(); 
-        
+        // 1. Check for new process arrivals at this current clock_cycle
+         check_and_load_arriving_processes(clock_cycle); // IS THIS IMPLEMENTED OR NOT 
+
+         // 2. Call the Scheduler 
+        // This is where the magic happens!
+         switch (current_policy) {
+            case RR:
+                schedule_RR();
+                break;
+            case HRRN:
+                schedule_HRRN();
+                break;
+            case MLFQ:
+                schedule_MLFQ();
+                break;
+        }
+        // 2. Call the Scheduler 
+        // This is where the magic happens!
+    
+
+        // 3. Update system state
+        update_waiting_times(ready_queue); // Important for HRRN! //IS THIS IMPLEMENTED OR NOT
+    
         // Call your chosen scheduler
         // schedule_RR(); 
 

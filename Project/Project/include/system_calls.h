@@ -6,7 +6,7 @@
 #include <string.h>
 #include "../include/memory.h"
 
-#define MAX_VALUE_LENGTH 256
+
 
 void syscall_print(int processId, char* variableName, MemoryWord* memory, int lowerBound, int upperBound);
 char* syscall_take_input(int processId);

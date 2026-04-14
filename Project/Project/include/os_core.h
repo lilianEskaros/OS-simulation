@@ -8,10 +8,17 @@
 #include <stdbool.h>
 
 // --- Configuration Constants ---
-#define MEMORY_SIZE 40           // [cite: 32]
+#define MEMORY_SIZE 40           // [cite: 32] // need to check lily
 #define MAX_PROCESSES 10
-#define INSTRUCTIONS_PER_SLICE 2 // For Round Robin [cite: 104]
-#define VARIABLES_PER_PROCESS 3  // [cite: 39]
+#define INSTRUCTIONS_PER_SLICE 2 // For Round Robin [cite: 104] // need to check lina 
+#define VARIABLES_PER_PROCESS 3  // [cite: 39] // need to check chris 
+#define MAX_VALUE_LENGTH 256 
+#define MAX_FILE_BUFFER 2048 // storage buffer hold the entire content of a file in a single string 
+
+
+#define MUTEX_FILE "file" // need to check mickeys part in main use these 
+#define MUTEX_INPUT "userInput"
+#define MUTEX_OUTPUT "userOutput"
 
 // --- Enums ---
 typedef enum {
@@ -31,21 +38,23 @@ typedef struct {
     int arrival_time;    // [cite: 37]
     int burst_time;      // Required for HRRN [cite: 101]
     int waiting_time;    // Required for HRRN [cite: 101]
+    int priorityLevel;   // Used if implementing MLFQ [cite: 107]
 } PCB;
 
 typedef struct {
-    char name[20];
-    char value[50];
+    char name[MAX_VALUE_LENGTH];
+    char value[MAX_VALUE_LENGTH];
 } MemoryWord;
-
 typedef struct Node {
-    PCB* process;
-    struct Node* next;
+    PCB *process;          // Pointer to the process's PCB
+    struct Node *next;     // Pointer to the next node in the queue
 } Node;
 
+// Queue Structure
 typedef struct {
-    Node* front;
-    Node* rear;
+    Node *head;
+    Node *tail;
+    int size;
 } Queue;
 
 typedef struct {

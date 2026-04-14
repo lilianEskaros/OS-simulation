@@ -81,11 +81,78 @@ bool allocate_memory(PCB* process, const char* filename) {
 
 
 void swap_to_disk(PCB* process) {
-    // Unload process and store data on disk [cite: 42]
+   char disk_filename[50]; 
+    sprintf(disk_filename, "disk/process_%d.txt", process->pid);
+    FILE* file = fopen(disk_filename, "w");
+    if (file == NULL) {
+        printf("Error: Could not create disk file %s for writing.\n", disk_filename);
+        return;
+}
+for (int i = process->mem_start; i <= process->mem_end; i++){
+    fprintf(file, "%s=%s\n", memory[i].name, memory[i].value);
+}
+fclose(file);
+for(int i=process->mem_start; i<= process->mem_end; i++){
+    strcpy(memory[i].name, "Empty");
+    strcpy(memory[i].value, "Empty");
+}
+process->mem_start = -1;
+process->mem_end = -1;
+printf("Process %d swapped out to disk (%s).\n", process->pid, disk_filename);
 }
 
+
 void swap_from_disk(PCB* process) {
-    // Read process data back from disk [cite: 44]
+    char disk_filename[50];
+    sprintf(disk_filename, "disk/process_%d.txt", process->pid);
+    FILE* file = fopen(disk_filename, "r");
+    if (file == NULL) {
+        printf("Error: Could not find swap file %s.\n", disk_filename);
+        return;
+}
+int total_words_needed = 0;
+char buffer[100];
+while (fgets(buffer, sizeof(buffer), file) != NULL) {
+    total_words_needed++;
+}
+int start_index = -1;
+int consecutive_empty = 0;
+for (int i = 0; i < 40; i++) {
+    if (strcmp(memory[i].name, "Empty") == 0) {
+        if (consecutive_empty == 0) {
+            start_index = i;
+        }
+        consecutive_empty++;
+        if (consecutive_empty == total_words_needed) {
+            break;
+        }
+    } else {
+        consecutive_empty = 0;
+    }
+}
+if (consecutive_empty < total_words_needed) {
+    printf("Not enough memory to swap process %d back in. \n", process->pid);
+    fclose(file);
+    return;
+}
+process->mem_start = start_index;
+process->mem_end = start_index + total_words_needed - 1;
+rewind(file);
+int current_slot = start_index;
+while (fgets(buffer, sizeof(buffer), file) != NULL) {
+    buffer[strcspn(buffer, "\n")] = 0;
+    buffer[strcspn(buffer, "\r")] = 0;
+    char* equals_sign = strchr(buffer, '='); 
+    if (equals_sign != NULL) {
+        *equals_sign = '\0'; 
+        strcpy(memory[current_slot].name, buffer);
+        strcpy(memory[current_slot].value, equals_sign + 1);
+}
+current_slot++;
+}
+fclose(file);
+remove(disk_filename);
+printf("Process %d swapped in from disk to memory slots %d to %d.\n", process->pid, process->mem_start, process->mem_end);
 }
 
 void print_memory_state() {

@@ -25,6 +25,9 @@ Queue* get_ready_queue() {
 Queue* get_blocked_queue() {
     return blocked_queue;
 }
+Queue** get_mlfq_queues() {
+    return mlfq_queues; 
+}
 
 int main() {
     // Initialization of memory

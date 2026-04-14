@@ -48,6 +48,34 @@ bool allocate_memory(PCB* process, const char* filename) {
         process->mem_start = start_index;
         process->mem_end = start_index + total_words_needed - 1;
         printf("Allocated memory for Process %d from index %d to %d.\n", process->pid, process->mem_start, process->mem_end);
+
+        int current_slot= start_index;
+        process->pc = start_index + 3;
+        strcpy(memory[current_slot].name, "PCB_PID");
+        sprintf(memory[current_slot].value, "%d", process->pid);
+        current_slot++;
+        strcpy(memory[current_slot].name, "PCB_PC");
+        sprintf(memory[current_slot].value, "%d", process->pc);
+        current_slot++;
+        strcpy(memory[current_slot].name, "PCB_State");
+        strcpy(memory[current_slot].value, "Ready");
+        current_slot++;
+
+        file = fopen(filename, "r");
+        while (fgets(buffer,sizeof(buffer),file)!=NULL){
+            buffer[strcspn(buffer, "\n")] = 0;
+            buffer[strcspn(buffer, "\r")] = 0;
+            strcpy(memory[current_slot].name, "Instruction");
+            strcpy(memory[current_slot].value, buffer);
+            current_slot++;
+        }
+        fclose(file);
+        while (current_slot <= process->mem_end) {
+            strcpy(memory[current_slot].name, "Variable");
+            strcpy(memory[current_slot].value, "Uninitialized");
+            current_slot++;
+        }
+
     return true;
 }
 

@@ -35,6 +35,7 @@ typedef struct {
     int pc;              // Program Counter [cite: 55]
     int mem_start;       // Memory Boundaries [cite: 56]
     int mem_end;         // Memory Boundaries [cite: 56]
+    int instruction_end; // deh 3ashan ne3raf n set finished state lel process
     int arrival_time;    // [cite: 37]
     int burst_time;      // Required for HRRN [cite: 101]
     int waiting_time;    // Required for HRRN [cite: 101]

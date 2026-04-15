@@ -39,6 +39,7 @@ typedef struct {
     int burst_time;      // Required for HRRN [cite: 101]
     int waiting_time;    // Required for HRRN [cite: 101]
     int priorityLevel;   // Used if implementing MLFQ [cite: 107]
+    int instruction_end; // Address of the last instruction in memory
 } PCB;
 
 typedef struct {

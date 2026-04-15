@@ -27,7 +27,7 @@ bool allocate_memory(PCB* process, const char* filename) {
     }
     fclose(file);
 
-    int total_words_needed = VARIABLES_PER_PROCESS + 9 + lines_of_codes;
+    int total_words_needed = VARIABLES_PER_PROCESS + 10 + lines_of_codes;
     printf("Process %d needs %d memory words.\n", process->pid, total_words_needed);
 
     int start_index = -1;
@@ -57,7 +57,8 @@ bool allocate_memory(PCB* process, const char* filename) {
     process->mem_start = start_index;
     process->mem_end = start_index + total_words_needed - 1;
     
-    process->pc = start_index + 9;
+    process->pc = start_index + 10;
+    process->instruction_end = process->pc + lines_of_codes - 1;
 
     printf("Allocated memory for Process %d from index %d to %d.\n", 
             process->pid, process->mem_start, process->mem_end);
@@ -82,6 +83,10 @@ bool allocate_memory(PCB* process, const char* filename) {
 
     strcpy(memory[current_slot].name, "PCB_MemEnd");
     sprintf(memory[current_slot].value, "%d", process->mem_end);
+    current_slot++;
+
+    strcpy(memory[current_slot].name, "PCB_InstrEnd");
+    sprintf(memory[current_slot].value, "%d", process->instruction_end);
     current_slot++;
 
     strcpy(memory[current_slot].name, "PCB_Arrival");

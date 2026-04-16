@@ -58,6 +58,8 @@ void parse_and_load_program(const char* filename, int arrival_time) {
         index++;
     }
 
+
+    pcb.instruction_end= (pcb.mem_start + 3) + (instruction_count - 1);
     pcb.pc = pcb.mem_start + 3;  
     pcb.burst_time = instruction_count;
 
@@ -65,7 +67,15 @@ void parse_and_load_program(const char* filename, int arrival_time) {
 }
 
 void execute_instruction(PCB* process) {
+    // CHECK FIRST: Are we out of code?
+    if (process->pc > process->instruction_end) {
+        process->state = FINISHED;
+        printf("Process %d finished execution.\n", process->pid);
+        return;
+    }
+
     char line[100];
+
     strcpy(line, memory[process->pc].value);
 
     if (strlen(line) == 0) {
@@ -90,39 +100,66 @@ void execute_instruction(PCB* process) {
         char* value = strtok(NULL, " ");
 
         if (strcmp(value, "input") == 0) {
-            char input[50];
-            printf("Please enter a value: ");
-            scanf("%s", input);
-            set_variable(process, var, input);
+            char* input = syscall_take_input(process->pid);
+
+            syscall_write_memory(
+                process->pid, var, input,
+                memory, process->mem_start, process->mem_end
+            );
         }
 
         else if (strcmp(value, "readFile") == 0) {
             char* filenameVar = strtok(NULL, " ");
-            char* filename = get_variable(process, filenameVar);
-            char* fileContent = readFile(filename);
 
-            set_variable(process, var, fileContent);
+            char* filename = syscall_read_memory(
+                process->pid, filenameVar,
+                memory, process->mem_start, process->mem_end
+            );
+
+            char* fileContent = syscall_read_file(process->pid, filename);
+
+            syscall_write_memory(
+                process->pid, var, fileContent,
+                memory, process->mem_start, process->mem_end
+            );
         }
 
         else {
-            set_variable(process, var, value);
+            syscall_write_memory(
+                process->pid, var, value,
+                memory, process->mem_start, process->mem_end
+            );
         }
     }
 
     else if (strcmp(command, "print") == 0) {
         char* var = strtok(NULL, " ");
-        printf("%s\n", get_variable(process, var));
+
+        syscall_print(
+            process->pid, var,
+            memory, process->mem_start, process->mem_end
+        );
     }
 
     else if (strcmp(command, "printFromTo") == 0) {
         char* x = strtok(NULL, " ");
         char* y = strtok(NULL, " ");
 
-        int start = atoi(get_variable(process, x));
-        int end = atoi(get_variable(process, y));
+        char* startStr = syscall_read_memory(
+            process->pid, x,
+            memory, process->mem_start, process->mem_end
+        );
+
+        char* endStr = syscall_read_memory(
+            process->pid, y,
+            memory, process->mem_start, process->mem_end
+        );
+
+        int start = atoi(startStr);
+        int end = atoi(endStr);
 
         for (int i = start; i <= end; i++) {
-            printf("%d\n", i);
+            printf("%d\n", i); // acceptable unless required syscall
         }
     }
 
@@ -130,11 +167,24 @@ void execute_instruction(PCB* process) {
         char* fileVar = strtok(NULL, " ");
         char* dataVar = strtok(NULL, " ");
 
-        char* filename = get_variable(process, fileVar);
-        char* data = get_variable(process, dataVar);
+        char* filename = syscall_read_memory(
+            process->pid, fileVar,
+            memory, process->mem_start, process->mem_end
+        );
 
-        writeFile(filename, data);
+        char* data = syscall_read_memory(
+            process->pid, dataVar,
+            memory, process->mem_start, process->mem_end
+        );
+
+        syscall_write_file(process->pid, filename, data);
     }
 
     process->pc++;
+
+    // FINAL CHECK: Did that last increment push us past the end?
+    if (process->pc > process->instruction_end) {
+        process->state = FINISHED;
+        printf("Process %d finished execution.\n", process->pid);
+    }
 }

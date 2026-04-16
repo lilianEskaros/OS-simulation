@@ -39,8 +39,9 @@ PCB* dequeue(Queue* q) {
     return p;
 }
 bool is_empty(Queue* q) {
-   return (q == NULL || q->head == NULL);
+   return (q == NULL || q->head == NULL || q->size == 0);
 }
+
 void print_queue(Queue* q, const char* queue_name) {
     printf("%s: ", queue_name);
     
@@ -73,8 +74,9 @@ PCB* find_and_remove_best_hrrn(Queue* q) {
     // Iterate through the linked list to find the highest ratio
     while (curr != NULL) {
         // HRRN Formula: (W + B) / B
-        double ratio = (double)(curr->process->waiting_time + curr->process->burst_time) / curr->process->burst_time;
-        
+        // Inside HRRN loop
+        double b_time = (curr->process->burst_time <= 0) ? 1.0 : (double)curr->process->burst_time;
+        double ratio = (double)(curr->process->waiting_time + b_time) / b_time;
         if (ratio > max_ratio) {
             max_ratio = ratio;
             best_node = curr;
@@ -100,6 +102,7 @@ PCB* find_and_remove_best_hrrn(Queue* q) {
 void remove_from_queue(Queue** q_ptr, PCB* process_to_remove) {
     // Since we are using Queue** (pointer to the pointer), 
     // we dereference it once to get the actual Queue*
+    if (q_ptr == NULL || *q_ptr == NULL) return;
     Queue* q = *q_ptr;
 
     if (q == NULL || q->head == NULL || process_to_remove == NULL) {
@@ -135,4 +138,16 @@ void remove_from_queue(Queue** q_ptr, PCB* process_to_remove) {
     // 5. Clean up memory and update size
     free(curr);
     q->size--;
+}
+void freeQueue(Queue* q) {
+    if (q == NULL) return;
+    Node* curr = q->head;
+    while (curr != NULL) {
+        Node* next = curr->next;
+        // Note: Do NOT free curr->process here, as the PCB 
+        // usually lives in a global array or the memory array.
+        free(curr);
+        curr = next;
+    }
+    free(q);
 }

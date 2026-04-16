@@ -66,7 +66,7 @@ void parse_and_load_program(const char* filename, int arrival_time) {
     enqueue(ready_queue, pcb);
 }
 
-void execute_instruction(PCB* process) {
+int execute_instruction(PCB* process) {
     // CHECK FIRST: Are we out of code?
     if (process->pc > process->instruction_end) {
         process->state = FINISHED;
@@ -75,19 +75,24 @@ void execute_instruction(PCB* process) {
     }
 
     char line[100];
+    printf("Executing P%d: %s\n", process->pid, memory[process->pc].value);
 
     strcpy(line, memory[process->pc].value);
-
+    
     if (strlen(line) == 0) {
         process->pc++;
-        return;
+        return 1;
     }
 
     char* command = strtok(line, " ");
-
+    
     if (strcmp(command, "semWait") == 0) {
         char* resource = strtok(NULL, " ");
         semWait(resource, process);
+
+        if (process->state == BLOCKED) {
+            return 0; 
+        }
     }
 
     else if (strcmp(command, "semSignal") == 0) {
@@ -186,5 +191,7 @@ void execute_instruction(PCB* process) {
     if (process->pc > process->instruction_end) {
         process->state = FINISHED;
         printf("Process %d finished execution.\n", process->pid);
+        return 0; 
     }
+    return 1; // successful can execute more instructions if time slice allows 
 }

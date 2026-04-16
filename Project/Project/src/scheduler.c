@@ -7,6 +7,22 @@
 PCB* curr_process = NULL;
 int time_slice_c = 0;
 
+void update_memory_view(PCB* p) {
+    // Word 1: PC (stored at mem_start + 1)
+    sprintf(memory[p->mem_start + 1].value, "%d", p->pc);
+    
+    // Word 2: State (stored at mem_start + 2)
+    const char* state_str;
+    switch(p->state) {
+        case READY: state_str = "READY"; break;
+        case RUNNING: state_str = "RUNNING"; break;
+        case BLOCKED: state_str = "BLOCKED"; break;
+        case FINISHED: state_str = "FINISHED"; break;
+        default: state_str = "UNKNOWN"; break;
+    }
+    strcpy(memory[p->mem_start + 2].value, state_str);
+}
+
 void schedule_RR() {
     Queue* ready_queue = get_ready_queue();
 
@@ -16,45 +32,53 @@ void schedule_RR() {
         curr_process = dequeue(ready_queue);
         curr_process->state = RUNNING;
         time_slice_c = 0;
+
         printf("Selected Process: P%d\n", curr_process->pid);
+        update_memory_view(curr_process);
         print_queue(ready_queue, "Ready Queue");
     }
 
     // 2. Execute
-    execute_instruction(curr_process);
+    int can_continue = execute_instruction(curr_process);
     time_slice_c++;
 
+    update_memory_view(curr_process);
     update_waiting_times(ready_queue);
 
     // 3. Preempt if: Time slice finished OR process finished/blocked
-    if (curr_process->state == FINISHED || curr_process->state == BLOCKED) {
+    // Preemption Logic
+    if (can_continue == 0 || curr_process->state == FINISHED || curr_process->state == BLOCKED) {
+        // If it blocked, it's already handled by semWait/Interpreter
         curr_process = NULL; 
-    } 
+    }
     else if (time_slice_c >= 2) { 
         // Process is still RUNNING but time is up
         curr_process->state = READY;
+        update_memory_view(curr_process);
         enqueue(ready_queue, curr_process);
         curr_process = NULL;
     }
 }
 
 void schedule_HRRN() {
+    Queue* ready_queue = get_ready_queue();
    if (curr_process == NULL) {
         if (is_empty(ready_queue)) return;
 
         // Non-preemptive selection [cite: 100, 102]
         curr_process = find_and_remove_best_hrrn(ready_queue);
         curr_process->state = RUNNING;
-        
+        update_memory_view(curr_process);
+
         printf("Selected Process (HRRN): P%d\n", curr_process->pid); 
         print_queue(ready_queue, "Ready Queue"); 
     }
-    execute_instruction(curr_process);
 
-    update_waiting_times(get_ready_queue());
+    int can_continue = execute_instruction(curr_process);
+    update_memory_view(curr_process);
+    update_waiting_times(ready_queue);
 
-    // Only reset when finished or blocked because it's non-preemptive 
-    if (curr_process->state == FINISHED || curr_process->state == BLOCKED) {
+    if (can_continue == 0 || curr_process->state == FINISHED || curr_process->state == BLOCKED) {
         curr_process = NULL;
     }
 }
@@ -68,7 +92,7 @@ void schedule_MLFQ() {
                 curr_process = dequeue(my_queues[i]);
                 curr_process->state = RUNNING;
                 time_slice_c = 0; // Reset counter for new slice
-                
+                update_memory_view(curr_process);
                 printf("Selected P%d from Queue %d\n", curr_process->pid, i);
                 break; 
             }
@@ -77,18 +101,18 @@ void schedule_MLFQ() {
     }
 
     // 2. Execute 1 instruction
-    execute_instruction(curr_process);
+    int can_continue = execute_instruction(curr_process);
     time_slice_c++;
-
+    update_memory_view(curr_process);
     update_mlfq_waiting_times(my_queues);
 
     // 3. Logic for Quantum and Demotion
     int current_level = curr_process->priorityLevel;
     int max_quantum = (1 << current_level); // This calculates 2^i // bitwise left shift
 
-    if (curr_process->state == FINISHED || curr_process->state == BLOCKED) {
+    if (can_continue == 0 || curr_process->state == FINISHED || curr_process->state == BLOCKED) {
         curr_process = NULL;
-    } 
+    }
     else if (time_slice_c >= max_quantum) {
         // Quantum exhausted! 
         curr_process->state = READY;
@@ -99,6 +123,7 @@ void schedule_MLFQ() {
             printf("Demoting P%d to Queue %d\n", curr_process->pid , curr_process->priorityLevel);
         }
         
+        update_memory_view(curr_process);
         // Add to the back of the appropriate queue
         enqueue(my_queues[curr_process->priorityLevel], curr_process);
         curr_process = NULL;

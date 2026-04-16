@@ -13,7 +13,6 @@ typedef enum {
     FINISHED
 } ProcessState;
 
-
 // Node for the Linked List Queue
 typedef struct Node {
     PCB *process;          // Pointer to the process's PCB
@@ -31,6 +30,8 @@ Queue* createQueue();
 void enqueue(Queue *q, PCB *p);
 PCB* dequeue(Queue *q);
 int isEmpty(Queue *q);
-void printQueue(Queue *q); // Required for evaluation output [cite: 124]
-
+void print_queue(Queue* q, const char* queue_name); // Required for evaluation output [cite: 124]
+PCB* find_and_remove_best_hrrn(Queue* q);
+void remove_from_queue(Queue** q_ptr, PCB* process_to_remove);
+void freeQueue(Queue* q);
 #endif

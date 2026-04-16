@@ -37,9 +37,9 @@ int main() {
     //Initialization of Queues
     ready_queue = createQueue(); //el queues el 3adeya
     blocked_queue = createQueue();
-    //file_mutex.blocked_queue = createQueue();  // dol el mutex queues (lazem yet3mel el mutex datastructure el awel)
-    //input_mutex.blocked_queue = createQueue();
-    //output_mutex.blocked_queue = createQueue();
+    file_mutex.blocked_queue = createQueue();  // dol el mutex queues (lazem yet3mel el mutex datastructure el awel)
+    input_mutex.blocked_queue = createQueue();
+    output_mutex.blocked_queue = createQueue();
     for(int i = 0; i < 4; i++) {
         mlfq_queues[i] = createQueue();
     }
@@ -48,9 +48,9 @@ int main() {
 
 
     // Initialize Mutexes [cite: 82]
-    strcpy(file_mutex.resource_name, "file");  //ME7TAGEEN NEZZABAT DOL WITH CONSTANTS
-    strcpy(input_mutex.resource_name, "userInput");
-    strcpy(output_mutex.resource_name, "userOutput");
+    strcpy(file_mutex.resource_name, RESOURCE_FILE);  //ME7TAGEEN NEZZABAT DOL WITH CONSTANTS
+    strcpy(input_mutex.resource_name, RESOURCE_USER_INPUT);
+    strcpy(output_mutex.resource_name, RESOURCE_USER_OUTPUT);
     file_mutex.is_locked = input_mutex.is_locked = output_mutex.is_locked = false;
 
     // 2. Load Programs (Based on arrival times)

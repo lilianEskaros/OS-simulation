@@ -9,8 +9,7 @@ int time_slice_c = 0;
 
 void schedule_RR() {
     Queue* ready_queue = get_ready_queue();
-    Queue* blocked_queue = get_blocked_queue();
-    // 1. If no process is running, pick one
+
     if (curr_process == NULL) {
         if (is_empty(ready_queue)) return;
         
@@ -24,6 +23,8 @@ void schedule_RR() {
     // 2. Execute
     execute_instruction(curr_process);
     time_slice_c++;
+
+    update_waiting_times(ready_queue);
 
     // 3. Preempt if: Time slice finished OR process finished/blocked
     if (curr_process->state == FINISHED || curr_process->state == BLOCKED) {
@@ -49,6 +50,8 @@ void schedule_HRRN() {
         print_queue(ready_queue, "Ready Queue"); 
     }
     execute_instruction(curr_process);
+
+    update_waiting_times(get_ready_queue());
 
     // Only reset when finished or blocked because it's non-preemptive 
     if (curr_process->state == FINISHED || curr_process->state == BLOCKED) {
@@ -77,6 +80,8 @@ void schedule_MLFQ() {
     execute_instruction(curr_process);
     time_slice_c++;
 
+    update_mlfq_waiting_times(my_queues);
+
     // 3. Logic for Quantum and Demotion
     int current_level = curr_process->priorityLevel;
     int max_quantum = (1 << current_level); // This calculates 2^i // bitwise left shift
@@ -97,5 +102,22 @@ void schedule_MLFQ() {
         // Add to the back of the appropriate queue
         enqueue(my_queues[curr_process->priorityLevel], curr_process);
         curr_process = NULL;
+    }
+}
+
+void update_waiting_times(Queue* ready_q) {
+    if (ready_q == NULL || ready_q->head == NULL) return;
+
+    Node* curr = ready_q->head;
+    while (curr != NULL) {
+        // Every process in the queue just waited for 1 clock cycle
+        curr->process->waiting_time++;
+        curr = curr->next;
+    }
+}
+
+void update_mlfq_waiting_times(Queue** queues) {
+    for (int i = 0; i < 4; i++) {
+        update_waiting_times(queues[i]);
     }
 }

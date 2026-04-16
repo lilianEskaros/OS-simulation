@@ -82,7 +82,6 @@ int main() {
         // 2. Call the Scheduler 
         // This is where the magic happens!
     
-
         // 3. Update system state
         update_waiting_times(ready_queue); // Important for HRRN! //IS THIS IMPLEMENTED OR NOT
     

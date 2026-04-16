@@ -44,7 +44,7 @@ bool is_empty(Queue* q) {
 void print_queue(Queue* q, const char* queue_name) {
     printf("%s: ", queue_name);
     
-    if (isempty(q)) {
+    if (is_empty(q)) {
         printf("Empty\n");
         return;
     }
@@ -52,7 +52,7 @@ void print_queue(Queue* q, const char* queue_name) {
     Node* current = q->head;
     while (current != NULL) {
         // Printing the Process ID as required [cite: 53, 124]
-        printf("P%d", current->process->processID);
+        printf("P%d", current->process->pid);
         
         current = current->next;
         if (current != NULL) {
@@ -73,7 +73,7 @@ PCB* find_and_remove_best_hrrn(Queue* q) {
     // Iterate through the linked list to find the highest ratio
     while (curr != NULL) {
         // HRRN Formula: (W + B) / B
-        double ratio = (double)(curr->process->waitingTime + curr->process->burstTime) / curr->process->burstTime;
+        double ratio = (double)(curr->process->waiting_time + curr->process->burst_time) / curr->process->burst_time;
         
         if (ratio > max_ratio) {
             max_ratio = ratio;

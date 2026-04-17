@@ -13,4 +13,6 @@ void schedule_MLFQ();
 void update_waiting_times(Queue* ready_q);
 void update_mlfq_waiting_times(Queue** queues);
 void update_memory_view(PCB* p);
+
+Queue** get_mlfq_queues();
 #endif

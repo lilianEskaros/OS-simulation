@@ -2,6 +2,7 @@
 #include "../include/queue.h"
 #include "../include/interpreter.h"
 #include "../include/os_core.h"
+#include "../include/memory.h" // ADDED: needed for swap_from_disk
 
 
 PCB* curr_process = NULL;
@@ -30,6 +31,13 @@ void schedule_RR() {
         if (is_empty(ready_queue)) return;
         
         curr_process = dequeue(ready_queue);
+
+        // --- SWAP CHECK ADDED HERE ---
+        if (curr_process->mem_start == -1) {
+            swap_from_disk(curr_process);
+        }
+        // -----------------------------
+
         curr_process->state = RUNNING;
         time_slice_c = 0;
 
@@ -65,8 +73,15 @@ void schedule_HRRN() {
    if (curr_process == NULL) {
         if (is_empty(ready_queue)) return;
 
-        // Non-preemptive selection [cite: 100, 102]
+        // Non-preemptive selection
         curr_process = find_and_remove_best_hrrn(ready_queue);
+
+        // --- SWAP CHECK ADDED HERE ---
+        if (curr_process->mem_start == -1) {
+            swap_from_disk(curr_process);
+        }
+        // -----------------------------
+
         curr_process->state = RUNNING;
         update_memory_view(curr_process);
 
@@ -90,6 +105,13 @@ void schedule_MLFQ() {
         for (int i = 0; i < 4; i++) {
             if (!is_empty(my_queues[i])) {
                 curr_process = dequeue(my_queues[i]);
+
+                // --- SWAP CHECK ADDED HERE ---
+                if (curr_process->mem_start == -1) {
+                    swap_from_disk(curr_process);
+                }
+                // -----------------------------
+
                 curr_process->state = RUNNING;
                 time_slice_c = 0; // Reset counter for new slice
                 update_memory_view(curr_process);

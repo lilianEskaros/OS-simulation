@@ -26,6 +26,9 @@ typedef enum {
     FINISHED
 } ProcessState;
 
+typedef enum {RR,HRRN,MLFQ} Policy;
+ extern Policy current_policy;
+
 // --- Data Structures ---
 typedef struct {
     int pid;             

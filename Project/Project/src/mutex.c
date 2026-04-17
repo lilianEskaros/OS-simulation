@@ -1,14 +1,14 @@
 #include "../include/mutex.h"
 #include "../include/os_core.h"
 #include "../include/scheduler.h"
+#include "../include/queue.h"
 
-// Note: These should be declared in your main or global context
 Mutex file_mutex;
 Mutex input_mutex;
 Mutex output_mutex;
 
+// Initialize the global mutexes defined in os_core.h
 void initialize_mutexes() {
-    // Correct: assign pointer to pointer
     output_mutex.blocked_queue = createQueue(); 
     output_mutex.is_locked = false;
     output_mutex.owner_pid = -1;
@@ -23,6 +23,8 @@ void initialize_mutexes() {
     file_mutex.is_locked = false;
     file_mutex.owner_pid = -1;
     strcpy(file_mutex.resource_name, RESOURCE_FILE);
+
+    printf("[Mutex] All mutexes initialized successfully.\n");
 }
 
 Mutex* get_mutex(char* resourceName) {
@@ -34,74 +36,68 @@ Mutex* get_mutex(char* resourceName) {
     return NULL;
 }
 
-int sem_wait(Mutex* mutex, PCB* process) {
+// Unified naming to semWait to match interpreter.c
+int semWait(char* resourceName, PCB* process) {
+    Mutex* mutex = get_mutex(resourceName);
     if (mutex == NULL) return 1;
 
-    // Resource available
-    if (mutex->is_locked == false) {
+    // Resource available OR already owned by this process (Handover from semSignal)
+    if (mutex->is_locked == false || mutex->owner_pid == process->pid) {
         mutex->is_locked = true;
         mutex->owner_pid = process->pid;
         printf("[Mutex] Process %d acquired %s\n", process->pid, mutex->resource_name);
-        return 1;
+        return 1; // It owns it, let it execute the instruction!
     }
 
     // Resource busy: Block process
     process->state = BLOCKED;
     
-    // Requirement: Update the state in the memory view immediately
     update_memory_view(process);
-
-    // Add to the specific mutex blocked queue
     enqueue(mutex->blocked_queue, process);
 
-    // Add to the global blocked queue (used for general OS tracking/GUI)
     Queue* global_blocked = get_blocked_queue();
     enqueue(global_blocked, process);
 
     printf("[Mutex] Process %d BLOCKED waiting for %s\n", process->pid, mutex->resource_name);
-    return 0; // Returning 0 tells the interpreter to stop the time slice
+    return 0; 
 }
 
-void sem_signal(Mutex* mutex, int pid) {
+// Unified naming to semSignal to match interpreter.c
+void semSignal(char* resourceName, int pid) {
+    Mutex* mutex = get_mutex(resourceName);
     if (mutex == NULL) return;
 
-    // Only the owner can release the resource
     if (mutex->owner_pid != pid) {
-        printf("[Mutex] ERROR: P%d tried to release %s but isn't the owner\n", 
-                pid, mutex->resource_name);
+        printf("[Mutex] ERROR: P%d tried to release %s but isn't the owner\n", pid, mutex->resource_name);
         return;
     }
 
-    printf("[Mutex] Process %d released %s\n", pid, mutex->resource_name);
+    printf("[Mutex] P%d released %s\n", pid, mutex->resource_name);
 
     if (is_empty(mutex->blocked_queue)) {
-        // No one waiting: unlock
         mutex->is_locked = false;
         mutex->owner_pid = -1;
-    } 
-    else {
-        // Handover: Wake up the next process in line
+    } else {
         PCB* nextProcess = dequeue(mutex->blocked_queue);
 
-        // 1. Remove it from the general blocked queue using your "Bypass" logic
+        // Remove from general blocked queue
         Queue* global_blocked = get_blocked_queue();
         remove_from_queue(&global_blocked, nextProcess);
 
-        // 2. Set state back to READY
         nextProcess->state = READY;
-        
-        // 3. Update the memory view so the PCB block shows READY
         update_memory_view(nextProcess);
 
-        // 4. Move process to the Scheduler's Ready Queue
-        Queue* ready_q = get_ready_queue();
-        enqueue(ready_q, nextProcess);
+        // --- FIXED FOR MLFQ ---
+        if (current_policy == MLFQ) {
+            // Unblocked processes go to high priority (Queue 0)
+            nextProcess->priorityLevel = 0; 
+            enqueue(get_mlfq_queues()[0], nextProcess);
+        } else {
+            enqueue(get_ready_queue(), nextProcess);
+        }
 
-        // 5. Transfer ownership immediately to the unblocked process
         mutex->owner_pid = nextProcess->pid;
-
-        printf("[Mutex] Process %d unblocked and now owns %s\n", 
-                nextProcess->pid, mutex->resource_name);
+        printf("[Mutex] P%d unblocked and now owns %s\n", nextProcess->pid, mutex->resource_name);
     }
 }
 
@@ -111,5 +107,5 @@ void print_mutex_state(Mutex* mutex) {
         mutex->resource_name,
         mutex->is_locked,
         mutex->owner_pid);
-    print_queue(&mutex->blocked_queue, "  Waiting");
+    print_queue(mutex->blocked_queue, "Waiting List");
 }

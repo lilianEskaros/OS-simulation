@@ -10,8 +10,8 @@
 
 // Function declarations
 void initialize_mutexes();
-int sem_wait(Mutex* mutex, PCB* process);
-PCB* sem_signal(Mutex* mutex, int pid);
+int semWait(char* resourceName, PCB* process);
+void semSignal(char* resourceName, int pid);
 Mutex* get_mutex(char* resourceName);
 void print_mutex_state(Mutex* mutex);
 

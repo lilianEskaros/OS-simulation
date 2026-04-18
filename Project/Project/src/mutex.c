@@ -37,7 +37,7 @@ Mutex* get_mutex(char* resourceName) {
 }
 
 // Unified naming to semWait to match interpreter.c
-int semWait(char* resourceName, PCB* process) {
+/*int semWait(char* resourceName, PCB* process) {
     Mutex* mutex = get_mutex(resourceName);
     if (mutex == NULL) return 1;
 
@@ -60,6 +60,26 @@ int semWait(char* resourceName, PCB* process) {
 
     printf("[Mutex] Process %d BLOCKED waiting for %s\n", process->pid, mutex->resource_name);
     return 0; 
+}*/
+
+int semWait(char* resourceName, PCB* process) {
+    Mutex* mutex = get_mutex(resourceName);
+    if (mutex == NULL) return 1;
+
+    if (mutex->is_locked == false || mutex->owner_pid == process->pid) {
+        mutex->is_locked = true;
+        mutex->owner_pid = process->pid;
+        printf("[Mutex] Process %d acquired %s\n", process->pid, mutex->resource_name);
+        return 1; // Success
+    }
+
+    process->state = BLOCKED;
+    update_memory_view(process);
+    enqueue(mutex->blocked_queue, process);
+    enqueue(get_blocked_queue(), process);
+
+    printf("[Mutex] Process %d BLOCKED waiting for %s\n", process->pid, mutex->resource_name);
+    return 0; // Blocked
 }
 
 // Unified naming to semSignal to match interpreter.c

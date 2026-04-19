@@ -131,10 +131,12 @@ int execute_instruction(PCB* process) {
 
     char* command = strtok(line, " ");
     
-   if (strcmp(command, "semWait") == 0) {
+    if (strcmp(command, "semWait") == 0) {
         char* resource = strtok(NULL, " ");
-        if (semWait(resource, process) == 0) {
-            return -1; // Special code: Blocked, do not increment clock
+        semWait(resource, process);
+
+        if (process->state == BLOCKED) {
+            return 0; 
         }
     }
 

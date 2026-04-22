@@ -9,10 +9,10 @@ PCB* curr_process = NULL;
 int time_slice_c = 0;
 
 void update_memory_view(PCB* p) {
-    // Word 1: PC (stored at mem_start + 1)
+    if (p->mem_start == -1) return; 
+    
     sprintf(memory[p->mem_start + 1].value, "%d", p->pc);
     
-    // Word 2: State (stored at mem_start + 2)
     const char* state_str;
     switch(p->state) {
         case READY: state_str = "READY"; break;

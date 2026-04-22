@@ -1,4 +1,4 @@
-#include "../include/interpreter.h"
+/*#include "../include/interpreter.h"
 #include "../include/memory.h"       // For allocate_memory
 #include "../include/queue.h"        // For enqueue
 #include "../include/mutex.h"        // For semWait / semSignal
@@ -240,4 +240,207 @@ int execute_instruction(PCB* process) {
         return 0; 
     }
     return 1; // successful can execute more instructions if time slice allows 
+}*/
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include "../include/interpreter.h"
+#include "../include/memory.h"
+#include "../include/queue.h"
+#include "../include/mutex.h"
+#include "../include/system_calls.h"
+#include "../include/os_core.h"
+
+extern int generatePID(); 
+extern PCB* curr_process; 
+Queue* get_ready_queue();
+Queue* get_blocked_queue();
+Queue** get_mlfq_queues();
+void parse_and_load_program(const char* filename, int arrival_time) {
+    PCB* pcb = (PCB*)malloc(sizeof(PCB));
+    if (pcb == NULL) {
+        printf("Error: Memory allocation failed for new PCB.\n");
+        return;
+    }
+
+    pcb->pid = generatePID();
+    pcb->state = READY;
+    pcb->arrival_time = arrival_time;
+    pcb->waiting_time = 0;
+    pcb->priorityLevel = 0;
+
+    bool allocated = allocate_memory(pcb, filename);
+    int failsafe = 0;
+    
+    while (!allocated && failsafe < 10) {
+        failsafe++;
+        printf("[Swapper] Memory full! Attempting to swap out a process to disk to load P%d...\n", pcb->pid);
+        
+        PCB* victim = NULL;
+        
+        Queue* rq = get_ready_queue();
+        int q_size = rq->size;
+        for (int i = 0; i < q_size; i++) {
+            PCB* temp = dequeue(rq);
+            if (temp->mem_start != -1 && victim == NULL) {
+                victim = temp; 
+            } else {
+                enqueue(rq, temp);
+            }
+        }
+
+        if (victim == NULL && current_policy == MLFQ) {
+            Queue** mlfq = get_mlfq_queues();
+            for (int j = 0; j < 4; j++) {
+                int mq_size = mlfq[j]->size;
+                for (int i = 0; i < mq_size; i++) {
+                    PCB* temp = dequeue(mlfq[j]);
+                    if (temp->mem_start != -1 && victim == NULL) victim = temp;
+                    else enqueue(mlfq[j], temp);
+                }
+            }
+        }
+
+        if (victim == NULL) {
+            Queue* bq = get_blocked_queue();
+            int bq_size = bq->size;
+            for (int i = 0; i < bq_size; i++) {
+                PCB* temp = dequeue(bq);
+                if (temp->mem_start != -1 && victim == NULL) victim = temp;
+                else enqueue(bq, temp);
+            }
+        }
+        
+        if (victim == NULL && curr_process != NULL && curr_process->mem_start != -1) {
+            victim = curr_process;
+            curr_process = NULL; 
+            printf("[Swapper] Preempted running process P%d for swapping.\n", victim->pid);
+        }
+        
+        if (victim != NULL) {
+            swap_to_disk(victim);
+            
+            if (victim->state == BLOCKED) {
+                enqueue(get_blocked_queue(), victim);
+            } else {
+                victim->state = READY; 
+                if (current_policy == MLFQ) {
+                    enqueue(get_mlfq_queues()[victim->priorityLevel], victim);
+                } else {
+                    enqueue(get_ready_queue(), victim);
+                }
+            }
+            
+            allocated = allocate_memory(pcb, filename);
+            
+        } else {
+            printf("[Swapper] CRITICAL: Memory full and no victim processes in RAM to swap.\n");
+            free(pcb);
+            return;
+        }
+    }
+    
+    if (!allocated) {
+        printf("[Swapper] Error: Memory swap failed (Failsafe triggered).\n");
+        free(pcb);
+        return;
+    }
+
+    enqueue(get_ready_queue(), pcb); 
+}
+
+int execute_instruction(PCB* process) {
+    if (process->pc > process->instruction_end) {
+        process->state = FINISHED;
+        printf("Process %d finished execution.\n", process->pid);
+        deallocate_memory(process); 
+        return 0;
+    }
+
+    char line[100];
+    printf("Executing P%d: %s\n", process->pid, memory[process->pc].value);
+
+    strcpy(line, memory[process->pc].value);
+    
+    if (strlen(line) == 0) {
+        process->pc++;
+        return 1;
+    }
+
+    char* command = strtok(line, " ");
+    
+    if (strcmp(command, "semWait") == 0) {
+        char* resource = strtok(NULL, " ");
+        semWait(resource, process);
+        if (process->state == BLOCKED) {
+            process->pc++; 
+            return 0; 
+        }
+    }
+    else if (strcmp(command, "semSignal") == 0) {
+        char* resource = strtok(NULL, " ");
+        semSignal(resource, process->pid); 
+    }
+    else if (strcmp(command, "assign") == 0) {
+        char* var = strtok(NULL, " ");
+        char* value = strtok(NULL, " ");
+
+        if (strcmp(value, "input") == 0) {
+            char* input = syscall_take_input(process->pid);
+            syscall_write_memory(process->pid, var, input, memory, process->mem_start, process->mem_end);
+        }
+        else if (strcmp(value, "readFile") == 0) {
+            char* filenameVar = strtok(NULL, " ");
+            char* filename = syscall_read_memory(process->pid, filenameVar, memory, process->mem_start, process->mem_end);
+            char* fileContent = syscall_read_file(process->pid, filename);
+            
+            // --- FIX: Prevent Segmentation Fault on Race Condition ---
+            if (fileContent == NULL) {
+                printf("[OS Warning] P%d attempted to read missing file: '%s'. Handling gracefully.\n", process->pid, filename);
+                fileContent = "File_Not_Found"; // Provide safe fallback data
+            }
+            // ---------------------------------------------------------
+            
+            syscall_write_memory(process->pid, var, fileContent, memory, process->mem_start, process->mem_end);
+        }
+        else {
+            syscall_write_memory(process->pid, var, value, memory, process->mem_start, process->mem_end);
+        }
+    }
+    else if (strcmp(command, "print") == 0) {
+        char* var = strtok(NULL, " ");
+        syscall_print(process->pid, var, memory, process->mem_start, process->mem_end);
+    }
+    else if (strcmp(command, "printFromTo") == 0) {
+        char* x = strtok(NULL, " ");
+        char* y = strtok(NULL, " ");
+
+        char* startStr = syscall_read_memory(process->pid, x, memory, process->mem_start, process->mem_end);
+        char* endStr = syscall_read_memory(process->pid, y, memory, process->mem_start, process->mem_end);
+
+        int start = atoi(startStr);
+        int end = atoi(endStr);
+
+        for (int i = start; i <= end; i++) {
+            printf("%d\n", i); 
+        }
+    }
+    else if (strcmp(command, "writeFile") == 0) {
+        char* fileVar = strtok(NULL, " ");
+        char* dataVar = strtok(NULL, " ");
+
+        char* filename = syscall_read_memory(process->pid, fileVar, memory, process->mem_start, process->mem_end);
+        char* data = syscall_read_memory(process->pid, dataVar, memory, process->mem_start, process->mem_end);
+        syscall_write_file(process->pid, filename, data);
+    }
+
+    process->pc++;
+
+    if (process->pc > process->instruction_end) {
+        process->state = FINISHED;
+        printf("Process %d finished execution.\n", process->pid);
+        deallocate_memory(process); 
+        return 0; 
+    }
+    return 1; 
 }

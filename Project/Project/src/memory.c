@@ -127,7 +127,6 @@ bool allocate_memory(PCB* process, const char* filename) {
     return true;
 }
 
-
 void deallocate_memory(PCB* process) {
     if (process->mem_start == -1) return; 
     for(int i = process->mem_start; i <= process->mem_end; i++) {
@@ -287,7 +286,6 @@ void swap_from_disk(PCB* process) {
     remove(disk_filename); 
     printf("Process %d swapped in from disk to memory slots %d to %d.\n", process->pid, process->mem_start, process->mem_end);
 }
-
 
 void print_memory_state() {
     printf("\n--- current Memory State ---\n");

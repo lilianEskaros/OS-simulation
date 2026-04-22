@@ -20,7 +20,7 @@ void parse_and_load_program(const char* filename, int arrival_time) {
     pcb->arrival_time = arrival_time;
     pcb->waiting_time = 0;
 
-    // --- SWAPPING LOGIC ADDED HERE ---=
+    // --- SWAPPING LOGIC ADDED HERE ---
     if (!allocate_memory(pcb, filename)) {
         printf("[Swapper] Memory full! Attempting to swap out a process to disk...\n");
         
@@ -131,7 +131,7 @@ int execute_instruction(PCB* process) {
 
     char* command = strtok(line, " ");
     
- /*   if (strcmp(command, "semWait") == 0) {
+    if (strcmp(command, "semWait") == 0) {
         char* resource = strtok(NULL, " ");
         semWait(resource, process);
 
@@ -139,18 +139,7 @@ int execute_instruction(PCB* process) {
             return 0; 
         }
     }
-*/
 
-if (strcmp(command, "semWait") == 0) {
-        char* resource = strtok(NULL, " ");
-        
-        // semWait now returns 0 if the process was blocked
-        if (semWait(resource, process) == 0) {
-            process->pc++; // Step the Program Counter forward so it doesn't re-execute!
-            return -1;     // Return -1 to tell the scheduler this process was blocked
-        }
-    }
-    
     else if (strcmp(command, "semSignal") == 0) {
         char* resource = strtok(NULL, " ");
         semSignal(resource, process->pid); // Added process->pid

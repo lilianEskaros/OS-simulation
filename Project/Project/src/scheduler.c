@@ -4,9 +4,7 @@
 #include "../include/os_core.h"
 #include "../include/memory.h" // ADDED: needed for swap_from_disk
 
-
 PCB* curr_process = NULL;
-int time_slice_c = 0;
 
 void update_memory_view(PCB* p) {
     if (p->mem_start == -1) return; 
@@ -39,7 +37,6 @@ void schedule_RR() {
         // -----------------------------
 
         curr_process->state = RUNNING;
-        time_slice_c = 0;
 
         printf("Selected Process: P%d\n", curr_process->pid);
         update_memory_view(curr_process);
@@ -48,20 +45,24 @@ void schedule_RR() {
 
     // 2. Execute
     int can_continue = execute_instruction(curr_process);
-    time_slice_c++;
+    
+    // TRACK QUANTUM IN THE PCB
+    curr_process->slice_used++; 
 
     update_memory_view(curr_process);
     update_waiting_times(ready_queue);
 
     // 3. Preempt if: Time slice finished OR process finished/blocked
-    // Preemption Logic
     if (can_continue == 0 || curr_process->state == FINISHED || curr_process->state == BLOCKED) {
         // If it blocked, it's already handled by semWait/Interpreter
+        curr_process->slice_used = 0; // Reset so it gets a fresh slice next time
         curr_process = NULL; 
     }
-    else if (time_slice_c >= 2) { 
+    else if (curr_process->slice_used >= INSTRUCTIONS_PER_SLICE) { 
         // Process is still RUNNING but time is up
         curr_process->state = READY;
+        curr_process->slice_used = 0; // Reset before sending back to the queue
+        
         update_memory_view(curr_process);
         enqueue(ready_queue, curr_process);
         curr_process = NULL;
@@ -70,7 +71,7 @@ void schedule_RR() {
 
 void schedule_HRRN() {
     Queue* ready_queue = get_ready_queue();
-   if (curr_process == NULL) {
+    if (curr_process == NULL) {
         if (is_empty(ready_queue)) return;
 
         // Non-preemptive selection
@@ -100,6 +101,7 @@ void schedule_HRRN() {
 
 void schedule_MLFQ() {
     Queue** my_queues = get_mlfq_queues();
+    
     // 1. Pick a process if none is running
     if (curr_process == NULL) {
         for (int i = 0; i < 4; i++) {
@@ -113,7 +115,6 @@ void schedule_MLFQ() {
                 // -----------------------------
 
                 curr_process->state = RUNNING;
-                time_slice_c = 0; // Reset counter for new slice
                 update_memory_view(curr_process);
                 printf("Selected P%d from Queue %d\n", curr_process->pid, i);
                 break; 
@@ -124,7 +125,10 @@ void schedule_MLFQ() {
 
     // 2. Execute 1 instruction
     int can_continue = execute_instruction(curr_process);
-    time_slice_c++;
+    
+    // TRACK QUANTUM IN THE PCB
+    curr_process->slice_used++; 
+    
     update_memory_view(curr_process);
     update_mlfq_waiting_times(my_queues);
 
@@ -133,11 +137,13 @@ void schedule_MLFQ() {
     int max_quantum = (1 << current_level); // This calculates 2^i // bitwise left shift
 
     if (can_continue == 0 || curr_process->state == FINISHED || curr_process->state == BLOCKED) {
+        curr_process->slice_used = 0; // Reset quantum on block/finish
         curr_process = NULL;
     }
-    else if (time_slice_c >= max_quantum) {
+    else if (curr_process->slice_used >= max_quantum) {
         // Quantum exhausted! 
         curr_process->state = READY;
+        curr_process->slice_used = 0; // Reset quantum before demotion
         
         // Demote if not already at the bottom (Queue 3)
         if (current_level < 3) {

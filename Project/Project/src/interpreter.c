@@ -268,7 +268,7 @@ void parse_and_load_program(const char* filename, int arrival_time) {
     pcb->arrival_time = arrival_time;
     pcb->waiting_time = 0;
     pcb->priorityLevel = 0;
-
+    pcb->slice_used = 0;
     bool allocated = allocate_memory(pcb, filename);
     int failsafe = 0;
     

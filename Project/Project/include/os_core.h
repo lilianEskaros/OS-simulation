@@ -41,6 +41,7 @@ typedef struct {
     int waiting_time;    // Required for HRRN
     int priorityLevel;   // Used for MLFQ
     int instruction_end; // Address of the last instruction in memory
+    int slice_used;       // Time used in the current time slice (for RR and MLFQ)
 } PCB;
 
 typedef struct {

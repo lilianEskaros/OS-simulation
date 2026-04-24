@@ -20,6 +20,8 @@ void update_memory_view(PCB* p) {
         default: state_str = "UNKNOWN"; break;
     }
     strcpy(memory[p->mem_start + 2].value, state_str);
+    sprintf(memory[p->mem_start + 6].value, "%d", p->waiting_time);
+    sprintf(memory[p->mem_start + 7].value, "%d", p->priorityLevel);
 }
 
 void schedule_RR() {

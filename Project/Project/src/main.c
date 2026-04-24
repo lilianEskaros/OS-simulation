@@ -213,7 +213,7 @@ Queue** get_mlfq_queues() {
     int main(int argc, char *argv[]) {
         setvbuf(stdout, NULL, _IONBF, 0);
     // Set a default just in case
-    current_policy = HRRN; 
+    current_policy = RR; 
 
     // Read the argument passed by Python
     if (argc > 1) {

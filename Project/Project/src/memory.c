@@ -315,9 +315,6 @@ void initialize_memory() {
     }
 }
 
-// BUG FIX 3: Prevent memory[0] corruption when process is on disk
-
-
 bool allocate_memory(PCB* process, const char* filename) {
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
@@ -336,7 +333,8 @@ bool allocate_memory(PCB* process, const char* filename) {
     }
     fclose(file);
 
-    int total_words_needed = VARIABLES_PER_PROCESS + 10 + lines_of_codes;
+    // FIX: 8 Memory Words to safely fit Wait/Burst/Priority without breaking the Swapper
+    int total_words_needed = VARIABLES_PER_PROCESS + 8 + lines_of_codes;
     int start_index = -1;
     int consecutive_empty = 0;
 
@@ -356,13 +354,15 @@ bool allocate_memory(PCB* process, const char* filename) {
 
     process->mem_start = start_index;
     process->mem_end = start_index + total_words_needed - 1;
-    process->pc = start_index + 10;
+    process->pc = start_index + 8; // Code starts after the 8-word PCB
     process->instruction_end = process->pc + lines_of_codes - 1;
     process->burst_time = lines_of_codes;
 
     printf("Allocated memory for Process %d from index %d to %d.\n", process->pid, process->mem_start, process->mem_end);
 
     int current_slot = start_index;
+    
+    // Memory Slot Layout
     strcpy(memory[current_slot].name, "PCB_PID");
     sprintf(memory[current_slot].value, "%d", process->pid);
     current_slot++;
@@ -381,14 +381,6 @@ bool allocate_memory(PCB* process, const char* filename) {
 
     strcpy(memory[current_slot].name, "PCB_MemEnd");
     sprintf(memory[current_slot].value, "%d", process->mem_end);
-    current_slot++;
-
-    strcpy(memory[current_slot].name, "PCB_InstrEnd");
-    sprintf(memory[current_slot].value, "%d", process->instruction_end);
-    current_slot++;
-
-    strcpy(memory[current_slot].name, "PCB_Arrival");
-    sprintf(memory[current_slot].value, "%d", process->arrival_time);
     current_slot++;
 
     strcpy(memory[current_slot].name, "PCB_Burst");
@@ -438,14 +430,12 @@ void deallocate_memory(PCB* process) {
 void swap_to_disk(PCB* process) {
     if (process->mem_start == -1) return;
     
-    // BUG FIX 1: Save in local directory to prevent missing folder errors
     char disk_filename[50]; 
     sprintf(disk_filename, "process_%d.txt", process->pid);
     FILE* file = fopen(disk_filename, "w");
     
     if (file == NULL) {
         printf("Error: Could not create disk file %s. Swapping aborted, but memory freed to prevent hang.\n", disk_filename);
-        // Force memory free to break infinite loops if file writing fails
         for(int i=process->mem_start; i<= process->mem_end; i++){
             strcpy(memory[i].name, "Empty");
             strcpy(memory[i].value, "Empty");
@@ -574,10 +564,8 @@ void swap_from_disk(PCB* process) {
     rewind(file);
     int current_slot = start_index;
     
-    // BUG FIX 2: Track old pointers to dynamically shift them
     int old_mem_start = -1;
     int old_pc = -1;
-    int old_instr_end = -1;
 
     while (fgets(buffer, sizeof(buffer), file) != NULL) {
         buffer[strcspn(buffer, "\n")] = 0;
@@ -591,7 +579,6 @@ void swap_from_disk(PCB* process) {
             // Extract old layout variables
             if (strcmp(buffer, "PCB_MemStart") == 0) old_mem_start = atoi(equals_sign + 1);
             if (strcmp(buffer, "PCB_PC") == 0) old_pc = atoi(equals_sign + 1);
-            if (strcmp(buffer, "PCB_InstrEnd") == 0) old_instr_end = atoi(equals_sign + 1);
         }
         current_slot++;
     }
@@ -599,16 +586,19 @@ void swap_from_disk(PCB* process) {
     fclose(file);
     remove(disk_filename); 
 
-    // Shift PCB absolute pointers if the process was placed in a different memory slot
+    // Shift PCB absolute pointers
     int shift_offset = start_index - old_mem_start;
     process->pc = old_pc + shift_offset;
-    process->instruction_end = old_instr_end + shift_offset;
+    process->instruction_end = (start_index + 8) + (process->burst_time - 1);
 
-    // Save the newly shifted pointers directly to the memory array so they match
+    // Save the newly shifted pointers directly to the memory array
     sprintf(memory[start_index + 1].value, "%d", process->pc);
     sprintf(memory[start_index + 3].value, "%d", process->mem_start);
     sprintf(memory[start_index + 4].value, "%d", process->mem_end);
-    sprintf(memory[start_index + 5].value, "%d", process->instruction_end);
+    
+    // CRITICAL: Pull the fresh Wait/Priority times from the struct, as the text file on disk might be outdated!
+    sprintf(memory[start_index + 6].value, "%d", process->waiting_time);
+    sprintf(memory[start_index + 7].value, "%d", process->priorityLevel);
 
     printf("Process %d swapped in from disk to memory slots %d to %d.\n", process->pid, process->mem_start, process->mem_end);
 }

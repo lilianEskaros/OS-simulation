@@ -183,7 +183,7 @@ int clock_cycle = 0;
 extern PCB* curr_process; 
 
 // Definition of the global policy
-Policy current_policy = MLFQ;
+Policy current_policy ;
 
 // --- Core Helper Functions ---
 
@@ -208,10 +208,27 @@ Queue** get_mlfq_queues() {
 
 // --- Main Simulation Loop ---
 
-int main() {
+//int main() {
+
+    int main(int argc, char *argv[]) {
+    // Set a default just in case
+    current_policy = MLFQ; 
+
+    // Read the argument passed by Python
+    if (argc > 1) {
+        int policy_choice = atoi(argv[1]);
+        if (policy_choice == 1) current_policy = RR;
+        else if (policy_choice == 2) current_policy = HRRN;
+        else if (policy_choice == 3) current_policy = MLFQ;
+    }
+
     printf("==========================================\n");
     printf("        OS Simulator Initialization       \n");
     printf("==========================================\n");
+
+    //printf("==========================================\n");
+    //printf("        OS Simulator Initialization       \n");
+   // printf("==========================================\n");
 
     // 1. Initialize System Structures
     initialize_memory();

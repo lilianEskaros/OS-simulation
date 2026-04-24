@@ -211,8 +211,9 @@ Queue** get_mlfq_queues() {
 //int main() {
 
     int main(int argc, char *argv[]) {
+        setvbuf(stdout, NULL, _IONBF, 0);
     // Set a default just in case
-    current_policy = MLFQ; 
+    current_policy = RR; 
 
     // Read the argument passed by Python
     if (argc > 1) {
@@ -225,10 +226,6 @@ Queue** get_mlfq_queues() {
     printf("==========================================\n");
     printf("        OS Simulator Initialization       \n");
     printf("==========================================\n");
-
-    //printf("==========================================\n");
-    //printf("        OS Simulator Initialization       \n");
-   // printf("==========================================\n");
 
     // 1. Initialize System Structures
     initialize_memory();

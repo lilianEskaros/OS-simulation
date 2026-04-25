@@ -2,7 +2,7 @@
 #include "../include/queue.h"
 #include "../include/interpreter.h"
 #include "../include/os_core.h"
-#include "../include/memory.h" // ADDED: needed for swap_from_disk
+#include "../include/memory.h" 
 
 PCB* curr_process = NULL;
 
@@ -32,11 +32,46 @@ void schedule_RR() {
         
         curr_process = dequeue(ready_queue);
 
-        // --- SWAP CHECK ADDED HERE ---
+        // --- INLINE SWAP LOGIC FOR RR ---
         if (curr_process->mem_start == -1) {
+            printf("[Swapper] P%d is on the disk! Finding a victim to make room...\n", curr_process->pid);
+            
+            // 1. Look for a victim in the Ready Queue
+            PCB* victim = NULL;
+            Node* temp = ready_queue->head;
+            
+            while (temp != NULL) {
+                if (temp->process->mem_start != -1) {
+                    victim = temp->process;
+                    break; // Found our victim!
+                }
+                temp = temp->next;
+            }
+
+            // 2. If no victim in Ready Queue, check Blocked Queue
+            if (victim == NULL) {
+                Queue* blocked_queue = get_blocked_queue();
+                temp = blocked_queue->head;
+                while (temp != NULL) {
+                    if (temp->process->mem_start != -1) {
+                        victim = temp->process;
+                        break;
+                    }
+                    temp = temp->next;
+                }
+            }
+
+            // 3. Swap the victim OUT to disk
+            if (victim != NULL) {
+                swap_to_disk(victim);
+            } else {
+                printf("[Swapper] ERROR: No victim found to swap out!\n");
+            }
+
+            // 4. Bring our current process IN
             swap_from_disk(curr_process);
         }
-        // -----------------------------
+        // ---------------------------------
 
         curr_process->state = RUNNING;
 
@@ -80,10 +115,51 @@ void schedule_HRRN() {
         curr_process = find_and_remove_best_hrrn(ready_queue);
 
         // --- SWAP CHECK ADDED HERE ---
+        /*if (curr_process->mem_start == -1) {
+            swap_from_disk(curr_process);
+        }*/
+        // -----------------------------
+        // --- INLINE SWAP LOGIC FOR HRRN ---
         if (curr_process->mem_start == -1) {
+            printf("[Swapper] P%d is on the disk! Finding a victim to make room...\n", curr_process->pid);
+            
+            // 1. Look for a victim in the Ready Queue
+            PCB* victim = NULL;
+            Node* temp = ready_queue->head;
+            
+            while (temp != NULL) {
+                if (temp->process->mem_start != -1) {
+                    victim = temp->process;
+                    break; 
+                }
+                temp = temp->next;
+            }
+
+            // 2. If no victim in Ready Queue, check Blocked Queue
+            if (victim == NULL) {
+                Queue* blocked_queue = get_blocked_queue();
+                temp = blocked_queue->head;
+                while (temp != NULL) {
+                    if (temp->process->mem_start != -1) {
+                        victim = temp->process;
+                        break;
+                    }
+                    temp = temp->next;
+                }
+            }
+
+            // 3. Swap the victim OUT to disk
+            if (victim != NULL) {
+                swap_to_disk(victim);
+            } else {
+                printf("[Swapper] ERROR: No victim found to swap out!\n");
+            }
+
+            // 4. Bring our current process IN
             swap_from_disk(curr_process);
         }
-        // -----------------------------
+        // ---------------------------------
+
 
         curr_process->state = RUNNING;
         update_memory_view(curr_process);
@@ -111,10 +187,54 @@ void schedule_MLFQ() {
                 curr_process = dequeue(my_queues[i]);
 
                 // --- SWAP CHECK ADDED HERE ---
+                /*if (curr_process->mem_start == -1) {
+                    swap_from_disk(curr_process);
+                }*/
+                // -----------------------------
+                
+                // --- INLINE SWAP LOGIC FOR MLFQ ---
                 if (curr_process->mem_start == -1) {
+                    printf("[Swapper] P%d is on the disk! Finding a victim to make room...\n", curr_process->pid);
+                    
+                    PCB* victim = NULL;
+                    
+                    // 1. Look for a victim across all 4 MLFQ queues
+                    for (int q_idx = 0; q_idx < 4; q_idx++) {
+                        Node* temp = my_queues[q_idx]->head;
+                        while (temp != NULL) {
+                            if (temp->process->mem_start != -1 && temp->process->pid != curr_process->pid) {
+                                victim = temp->process;
+                                break;
+                            }
+                            temp = temp->next;
+                        }
+                        if (victim != NULL) break; // Stop searching if we found one
+                    }
+
+                    // 2. If no victim in MLFQ queues, check Blocked Queue
+                    if (victim == NULL) {
+                        Queue* blocked_queue = get_blocked_queue();
+                        Node* temp = blocked_queue->head;
+                        while (temp != NULL) {
+                            if (temp->process->mem_start != -1) {
+                                victim = temp->process;
+                                break;
+                            }
+                            temp = temp->next;
+                        }
+                    }
+
+                    // 3. Swap the victim OUT to disk
+                    if (victim != NULL) {
+                        swap_to_disk(victim);
+                    } else {
+                        printf("[Swapper] ERROR: No victim found to swap out!\n");
+                    }
+
+                    // 4. Bring our current process IN
                     swap_from_disk(curr_process);
                 }
-                // -----------------------------
+                // ---------------------------------
 
                 curr_process->state = RUNNING;
                 update_memory_view(curr_process);

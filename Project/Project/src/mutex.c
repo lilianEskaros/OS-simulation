@@ -7,7 +7,7 @@ Mutex file_mutex;
 Mutex input_mutex;
 Mutex output_mutex;
 
-// Initialize the global mutexes defined in os_core.h
+
 void initialize_mutexes() {
     output_mutex.blocked_queue = createQueue(); 
     output_mutex.is_locked = false;
@@ -36,20 +36,19 @@ Mutex* get_mutex(char* resourceName) {
     return NULL;
 }
 
-// Unified naming to semWait to match interpreter.c
 int semWait(char* resourceName, PCB* process) {
     Mutex* mutex = get_mutex(resourceName);
     if (mutex == NULL) return 1;
 
-    // Resource available OR already owned by this process (Handover from semSignal)
+    
     if (mutex->is_locked == false || mutex->owner_pid == process->pid) {
         mutex->is_locked = true;
         mutex->owner_pid = process->pid;
         printf("[Mutex] Process %d acquired %s\n", process->pid, mutex->resource_name);
-        return 1; // It owns it, let it execute the instruction!
+        return 1; 
     }
 
-    // Resource busy: Block process
+    
     process->state = BLOCKED;
     
     update_memory_view(process);
@@ -62,7 +61,7 @@ int semWait(char* resourceName, PCB* process) {
     return 0; 
 }
 
-// Unified naming to semSignal to match interpreter.c
+
 void semSignal(char* resourceName, int pid) {
     Mutex* mutex = get_mutex(resourceName);
     if (mutex == NULL) return;
@@ -80,16 +79,16 @@ void semSignal(char* resourceName, int pid) {
     } else {
         PCB* nextProcess = dequeue(mutex->blocked_queue);
 
-        // Remove from general blocked queue
+        
         Queue* global_blocked = get_blocked_queue();
         remove_from_queue(&global_blocked, nextProcess);
 
         nextProcess->state = READY;
         update_memory_view(nextProcess);
 
-        // --- FIXED FOR MLFQ ---
+        
         if (current_policy == MLFQ) {
-            // Unblocked processes go to high priority (Queue 0)
+            
             nextProcess->priorityLevel = 0; 
             enqueue(get_mlfq_queues()[0], nextProcess);
         } else {
